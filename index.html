@@ -2,29 +2,42 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>家具 AR 展示</title>
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <style>
-        body { margin: 0; background-color: #f7f7f7; font-family: sans-serif; }
-        model-viewer { width: 100%; height: 100vh; }
-        /* 加载时的提示文字 */
-        #loading-text {
+        /* 样式重置，确保全屏显示 */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f7f7f7; font-family: sans-serif; }
+        model-viewer { width: 100%; height: 100%; }
+        
+        /* 加载提示文字样式 */
+        #status-container {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 18px; color: #666;
+            text-align: center; color: #555; pointer-events: none; z-index: 10;
         }
+        #loading-spinner {
+            border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%;
+            width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 15px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* AR 按钮样式 */
         .ar-button {
-            background-color: white; border-radius: 4px; border: none;
+            background-color: white; border-radius: 24px; border: 1px solid #dadce0;
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            padding: 12px 24px; font-size: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            padding: 12px 24px; font-size: 16px; font-weight: 500; color: #4285f4;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: none; /* 默认隐藏，加载完才显示 */
         }
-        /* 隐藏默认插槽，直到模型加载完毕 */
-        model-viewer:not(.loaded) .ar-button { display: none; }
+        /* 当模型加载完毕后，显示按钮 */
+        model-viewer.loaded .ar-button { display: inline-block; }
     </style>
 </head>
 <body>
 
-    <div id="loading-text">正在准备模型...</div>
+    <div id="status-container">
+        <div id="loading-spinner"></div>
+        <div id="status-text">正在寻找模型文件...</div>
+    </div>
 
     <model-viewer 
         id="main-viewer"
@@ -37,6 +50,7 @@
         ar-modes="webxr scene-viewer quick-look"
         shadow-intensity="1"
         ar-scale="fixed"
+        loading="eager" 
     >
         <button slot="ar-button" class="ar-button">
             👋 在您的房间查看 (AR)
@@ -44,24 +58,59 @@
     </model-viewer>
 
     <script>
-        // --- 核心自动化脚本 ---
+        // --- 核心自动化脚本 (V4.0 稳定版) ---
 
-        // 1. 获取网页里的 model-viewer 组件和加载文字
         const viewer = document.querySelector('#main-viewer');
-        const loadingText = document.querySelector('#loading-text');
+        const statusText = document.querySelector('#status-text');
+        const statusContainer = document.querySelector('#status-container');
+        const spinner = document.querySelector('#loading-spinner');
 
-        // 2. 读取当前网页 URL 中问号后面的参数
+        // 读取 URL 参数
         const urlParams = new URLSearchParams(window.location.search);
-        // 获取 'model' 参数的值 (例如 sofa01)
         const modelName = urlParams.get('model');
 
-        // 3. 判断：如果 URL 里提供了模型名字
         if (modelName) {
-           // 修改后：直接在当前目录下找对应名字的文件
+            statusText.innerHTML = `找到产品 "${modelName}"<br>正在下载高清模型文件，请耐心等待...`;
+
+            // --- 关键路径拼接 (使用反引号) ---
+            // 假设 .glb 和 .usdz 文件都在仓库根目录
             const glbPath = `${modelName}.glb`;
             const usdzPath = `${modelName}.usdz`;
 
-            // 把拼接好的路径设置给 model-viewer 组件
+            // 设置路径
             viewer.setAttribute('src', glbPath);
+            viewer.setAttribute('ios-src', usdzPath);
+            
+            // 监听：模型加载进度 (可选，用于调试)
+            viewer.addEventListener('progress', (event) => {
+                const progress = Math.round(event.detail.totalProgress * 100);
+                if (progress > 0 && progress < 100) {
+                     statusText.innerHTML = `正在下载高清模型文件... (${progress}%)<br>请勿关闭页面`;
+                }
+            });
 
-            viewer.setAttribute('ios-src', usdzPath
+            // 监听：加载成功
+            viewer.addEventListener('load', () => {
+                 // 隐藏加载提示及转圈动画
+                 statusContainer.style.display = 'none';
+                 // 给组件添加 loaded 类，从而显示 AR 按钮
+                 viewer.classList.add('loaded');
+                 console.log("模型加载成功！");
+            });
+
+            // 监听：加载失败
+            viewer.addEventListener('error', (error) => {
+                 spinner.style.display = 'none'; // 隐藏转圈
+                 statusText.innerHTML = `❌ <b>加载失败</b><br>找不到文件: "${modelName}.glb" 或 "${modelName}.usdz"<br>请检查 GitHub 仓库中的文件名是否完全一致（区分大小写）。`;
+                 statusText.style.color = "#d9534f";
+                 console.error("模型加载失败，详情:", error);
+            });
+
+        } else {
+            spinner.style.display = 'none';
+            statusText.innerHTML = "⚠️ <b>链接无效</b><br>请在链接末尾添加 ?model=您的文件名";
+            console.warn("URL中缺少 model 参数");
+        }
+    </script>
+</body>
+</html>
