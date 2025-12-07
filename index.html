@@ -57,10 +57,11 @@
 
         // 3. 判断：如果 URL 里提供了模型名字
         if (modelName) {
-            // 自动拼接路径：去 assets 文件夹找对应名字的文件
-            const glbPath = `assets/${modelName}.glb`;
-            const usdzPath = `assets/${modelName}.usdz`;
+           // 修改后：直接在当前目录下找对应名字的文件
+            const glbPath = `${modelName}.glb`;
+            const usdzPath = `${modelName}.usdz`;
 
             // 把拼接好的路径设置给 model-viewer 组件
             viewer.setAttribute('src', glbPath);
+
             viewer.setAttribute('ios-src', usdzPath
