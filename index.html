@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家具 AR 展示</title>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+    <style>
+        body { margin: 0; background-color: #f7f7f7; font-family: sans-serif; }
+        model-viewer { width: 100%; height: 100vh; }
+        /* 加载时的提示文字 */
+        #loading-text {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 18px; color: #666;
+        }
+        .ar-button {
+            background-color: white; border-radius: 4px; border: none;
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            padding: 12px 24px; font-size: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        /* 隐藏默认插槽，直到模型加载完毕 */
+        model-viewer:not(.loaded) .ar-button { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="loading-text">正在准备模型...</div>
+
+    <model-viewer 
+        id="main-viewer"
+        src="" 
+        ios-src=""
+        alt="家具模型展示"
+        auto-rotate
+        camera-controls
+        ar
+        ar-modes="webxr scene-viewer quick-look"
+        shadow-intensity="1"
+        ar-scale="fixed"
+    >
+        <button slot="ar-button" class="ar-button">
+            👋 在您的房间查看 (AR)
+        </button>
+    </model-viewer>
+
+    <script>
+        // --- 核心自动化脚本 ---
+
+        // 1. 获取网页里的 model-viewer 组件和加载文字
+        const viewer = document.querySelector('#main-viewer');
+        const loadingText = document.querySelector('#loading-text');
+
+        // 2. 读取当前网页 URL 中问号后面的参数
+        const urlParams = new URLSearchParams(window.location.search);
+        // 获取 'model' 参数的值 (例如 sofa01)
+        const modelName = urlParams.get('model');
+
+        // 3. 判断：如果 URL 里提供了模型名字
+        if (modelName) {
+            // 自动拼接路径：去 assets 文件夹找对应名字的文件
+            const glbPath = `assets/${modelName}.glb`;
+            const usdzPath = `assets/${modelName}.usdz`;
+
+            // 把拼接好的路径设置给 model-viewer 组件
+            viewer.setAttribute('src', glbPath);
+            viewer.setAttribute('ios-src', usdzPath
